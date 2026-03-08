@@ -107,52 +107,46 @@ struct Value {
 			break;
 		}
 		case byml::NodeType::Bool: {
-			bool valBool;
-			HK_TRY(container.getBoolByKey(&valBool, key));
+			bool valBool = HK_TRY(container.getBoolByKey(key));
 			setBool(valBool);
 			break;
 		}
 		case byml::NodeType::U32: {
-			u32 valU32;
-			HK_TRY(container.getU32ByKey(&valU32, key));
+			u32 valU32 = HK_TRY(container.getU32ByKey(key));
 			setU32(valU32);
 			break;
 		}
 		case byml::NodeType::S32: {
-			s32 valS32;
-			HK_TRY(container.getS32ByKey(&valS32, key));
+			s32 valS32 = HK_TRY(container.getS32ByKey(key));
 			setS32(valS32);
 			break;
 		}
 		case byml::NodeType::F32: {
-			f32 valF32;
-			HK_TRY(container.getF32ByKey(&valF32, key));
+			f32 valF32 = HK_TRY(container.getF32ByKey(key));
 			setF32(valF32);
 			break;
 		}
 		case byml::NodeType::U64: {
-			u64 valU64;
-			HK_TRY(container.getU64ByKey(&valU64, key));
+			u64 valU64 = HK_TRY(container.getU64ByKey(key));
 			setU64(valU64);
 			break;
 		}
 		case byml::NodeType::S64: {
-			s64 valS64;
-			HK_TRY(container.getS64ByKey(&valS64, key));
+			s64 valS64 = HK_TRY(container.getS64ByKey(key));
 			setS64(valS64);
 			break;
 		}
 		case byml::NodeType::F64: {
-			f64 valF64;
-			HK_TRY(container.getF64ByKey(&valF64, key));
+			f64 valF64 = HK_TRY(container.getF64ByKey(key));
 			setF64(valF64);
 			break;
 		}
+		case byml::NodeType::Binary:
+		case byml::NodeType::BinaryAlignment: HK_ABORT("unimplemented binary node"); break;
 
 		case byml::NodeType::Array:
 		case byml::NodeType::Hash:
 		case byml::NodeType::StringTable:
-		case byml::NodeType::Binary:
 		case byml::NodeType::Null: setNull(); break;
 		}
 
@@ -252,12 +246,11 @@ struct SearchEngine {
 };
 
 hk::Result readVec3f(hk::util::Vector3f* out, const byml::Reader& reader, const std::string& name) {
-	byml::Reader vec;
-	HK_TRY(reader.getContainerByKey(&vec, name));
+	byml::Reader vec = HK_TRY(reader.getContainerByKey(name));
 
-	HK_TRY(vec.getF32ByKey(&out->x, "X"));
-	HK_TRY(vec.getF32ByKey(&out->y, "Y"));
-	HK_TRY(vec.getF32ByKey(&out->z, "Z"));
+	out->x = HK_TRY(vec.getF32ByKey("X"));
+	out->y = HK_TRY(vec.getF32ByKey("Y"));
+	out->z = HK_TRY(vec.getF32ByKey("Z"));
 
 	return hk::ResultSuccess();
 }
@@ -268,14 +261,13 @@ hk::Result SearchEngine::searchItem(const byml::Reader& item, std::string_view b
 
 	if (level == 0) baseName = unitConfigName;
 
-	byml::Reader unitConfig;
-	HK_TRY(item.getContainerByKey(&unitConfig, "UnitConfig"));
+	byml::Reader unitConfig = HK_TRY(item.getContainerByKey("UnitConfig"));
 
 	std::string paramConfigName;
 	HK_TRY(unitConfig.getStringByKey(&paramConfigName, "ParameterConfigName"));
 
 	std::string modelName;
-	bool hasModelName = item.tryGetStringByKey(&modelName, "ModelName");
+	bool hasModelName = item.getStringByKey(&modelName, "ModelName").succeeded();
 
 	if (util::isEqual(unitConfigName, mQuery.name) || util::isEqual(paramConfigName, mQuery.name) ||
 	    (hasModelName && util::isEqual(modelName, mQuery.name))) {
@@ -318,16 +310,13 @@ hk::Result SearchEngine::searchItem(const byml::Reader& item, std::string_view b
 	}
 
 	if (mQuery.isRecurse) {
-		byml::Reader linkGroups;
-		HK_TRY(item.getContainerByKey(&linkGroups, "Links"));
+		byml::Reader linkGroups = HK_TRY(item.getContainerByKey("Links"));
 
 		for (u32 groupIdx = 0; groupIdx < linkGroups.getSize(); groupIdx++) {
-			byml::Reader group;
-			HK_TRY(linkGroups.getContainerByIdx(&group, groupIdx));
+			byml::Reader group = HK_TRY(linkGroups.getContainerByIdx(groupIdx));
 
 			for (u32 linkIdx = 0; linkIdx < group.getSize(); linkIdx++) {
-				byml::Reader item;
-				HK_TRY(group.getContainerByIdx(&item, linkIdx));
+				byml::Reader item = HK_TRY(group.getContainerByIdx(linkIdx));
 
 				HK_TRY(searchItem(item, baseName, level + 1));
 			}
@@ -345,12 +334,10 @@ hk::Result SearchEngine::searchScenario(const byml::Reader& scenario) {
 
 		if (util::isEqual(listName, "FilePath") || util::isEqual(listName, "Objs")) continue;
 
-		byml::Reader itemList;
-		HK_TRY(scenario.getContainerByIdx(&itemList, listIdx));
+		byml::Reader itemList = HK_TRY(scenario.getContainerByIdx(listIdx));
 
 		for (u32 itemIdx = 0; itemIdx < itemList.getSize(); itemIdx++) {
-			byml::Reader item;
-			HK_TRY(itemList.getContainerByIdx(&item, itemIdx));
+			byml::Reader item = HK_TRY(itemList.getContainerByIdx(itemIdx));
 
 			HK_TRY(searchItem(item));
 		}
@@ -373,8 +360,7 @@ hk::Result SearchEngine::searchBYML(const std::vector<u8> bymlContents) {
 		for (u32 scenarioIdx = 0; scenarioIdx < reader.getSize(); scenarioIdx++) {
 			mCurScenarioIdx = scenarioIdx;
 
-			byml::Reader scenario;
-			HK_TRY(reader.getContainerByIdx(&scenario, scenarioIdx));
+			byml::Reader scenario = HK_TRY(reader.getContainerByIdx(scenarioIdx));
 
 			HK_TRY(searchScenario(scenario));
 		}

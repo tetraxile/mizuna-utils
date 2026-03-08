@@ -11,7 +11,7 @@
 #include "mizuna/bfres/reader.h"
 #include "mizuna/bntx.h"
 #include "mizuna/byml/reader.h"
-#include "mizuna/byml/writer.h"
+// #include "mizuna/byml/writer.h"
 #include "mizuna/results.h"
 #include "mizuna/sarc/reader.h"
 #include "mizuna/sarc/writer.h"
@@ -22,83 +22,80 @@ namespace fs = std::filesystem;
 
 std::string programName;
 
-hk::Result print_byml(std::string& out, const byml::Reader& node, s32 level = 0) {
-	std::string indent(level, '\t');
+hk::Result print_byml_node(std::string& out, const byml::Reader& node, s32 level = 0) {
+	std::string indent;
+	for (s32 i = 0; i < level; i++)
+		indent += "  ";
 
 	if (HK_TRY(node.getType()) == byml::NodeType::Array) {
-		out += "[";
+		out += "array [";
 		for (u32 i = 0; i < node.getSize(); i++) {
 			out += "\n";
 			byml::NodeType childType = HK_TRY(node.getTypeByIdx(i));
-			out += "\t";
+			out += "  ";
 
 			switch (childType) {
 			case byml::NodeType::Array: {
-				byml::Reader container;
-				HK_TRY(node.getContainerByIdx(&container, i));
+				byml::Reader container = HK_TRY(node.getContainerByIdx(i));
 				out += indent;
-				HK_TRY(print_byml(out, container, level + 1));
+				HK_TRY(print_byml_node(out, container, level + 1));
 				break;
 			}
 			case byml::NodeType::Hash: {
-				byml::Reader container;
-				HK_TRY(node.getContainerByIdx(&container, i));
+				byml::Reader container = HK_TRY(node.getContainerByIdx(i));
 				out += indent;
-				HK_TRY(print_byml(out, container, level + 1));
+				HK_TRY(print_byml_node(out, container, level + 1));
 				break;
 			}
 			case byml::NodeType::String: {
 				std::string str;
 				HK_TRY(node.getStringByIdx(&str, i));
-				out += std::format("{}\"{}\"", indent, str);
+				out += std::format("{}string \"{}\"", indent, str);
 				break;
 			}
 			case byml::NodeType::Binary: {
 				std::vector<u8> value;
 				HK_TRY(node.getBinaryByIdx(&value, i));
-				// out += ;
+				out += std::format("{}binary `", indent);
+				for (u8 byte : value)
+					out += std::format("{:02x}", byte);
+				out += '`';
 				break;
 			}
+			case byml::NodeType::BinaryAlignment: HK_ABORT("unimplemented binary alignment node");
 			case byml::NodeType::Bool: {
-				bool value;
-				HK_TRY(node.getBoolByIdx(&value, i));
-				out += std::format("{}{}", indent, value);
+				bool value = HK_TRY(node.getBoolByIdx(i));
+				out += std::format("{}bool {}", indent, value);
 				break;
 			}
 			case byml::NodeType::S32: {
-				s32 value;
-				HK_TRY(node.getS32ByIdx(&value, i));
-				out += std::format("{}{}", indent, value);
+				s32 value = HK_TRY(node.getS32ByIdx(i));
+				out += std::format("{}s32 {}", indent, value);
 				break;
 			}
 			case byml::NodeType::F32: {
-				f32 value;
-				HK_TRY(node.getF32ByIdx(&value, i));
-				out += std::format("{}{}", indent, value);
+				f32 value = HK_TRY(node.getF32ByIdx(i));
+				out += std::format("{}f32 {}", indent, value);
 				break;
 			}
 			case byml::NodeType::U32: {
-				u32 value;
-				HK_TRY(node.getU32ByIdx(&value, i));
-				out += std::format("{}{}", indent, value);
+				u32 value = HK_TRY(node.getU32ByIdx(i));
+				out += std::format("{}u32 {}", indent, value);
 				break;
 			}
 			case byml::NodeType::S64: {
-				s64 value;
-				HK_TRY(node.getS64ByIdx(&value, i));
-				out += std::format("{}{}", indent, value);
+				s64 value = HK_TRY(node.getS64ByIdx(i));
+				out += std::format("{}s64 {}", indent, value);
 				break;
 			}
 			case byml::NodeType::U64: {
-				u64 value;
-				HK_TRY(node.getU64ByIdx(&value, i));
-				out += std::format("{}{}", indent, value);
+				u64 value = HK_TRY(node.getU64ByIdx(i));
+				out += std::format("{}u64 {}", indent, value);
 				break;
 			}
 			case byml::NodeType::F64: {
-				f64 value;
-				HK_TRY(node.getF64ByIdx(&value, i));
-				out += std::format("{}{}", indent, value);
+				f64 value = HK_TRY(node.getF64ByIdx(i));
+				out += std::format("{}f64 {}", indent, value);
 				break;
 			}
 			case byml::NodeType::Null: {
@@ -118,79 +115,74 @@ hk::Result print_byml(std::string& out, const byml::Reader& node, s32 level = 0)
 		}
 		out += "]";
 	} else if (HK_TRY(node.getType()) == byml::NodeType::Hash) {
-		out += "{";
+		out += "hash {";
 		for (u32 i = 0; i < node.getSize(); i++) {
 			out += "\n";
 			byml::NodeType childType = HK_TRY(node.getTypeByIdx(i));
 			std::string key;
 			HK_TRY(node.getKeyByIdx(&key, i));
-			out += std::format("\t{}\"{}\": ", indent, key);
+			out += std::format("  {}{}: ", indent, key);
 
 			switch (childType) {
 			case byml::NodeType::Array: {
-				byml::Reader container;
-				HK_TRY(node.getContainerByIdx(&container, i));
-				HK_TRY(print_byml(out, container, level + 1));
+				byml::Reader container = HK_TRY(node.getContainerByIdx(i));
+				HK_TRY(print_byml_node(out, container, level + 1));
 				break;
 			}
 			case byml::NodeType::Hash: {
-				byml::Reader container;
-				HK_TRY(node.getContainerByIdx(&container, i));
-				HK_TRY(print_byml(out, container, level + 1));
+				byml::Reader container = HK_TRY(node.getContainerByIdx(i));
+				HK_TRY(print_byml_node(out, container, level + 1));
 				break;
 			}
 			case byml::NodeType::String: {
 				std::string str;
 				HK_TRY(node.getStringByIdx(&str, i));
-				out += std::format("\"{}\"", str);
+				out += std::format("string \"{}\"", str);
 				break;
 			}
 			case byml::NodeType::Binary: {
 				std::vector<u8> value;
 				HK_TRY(node.getBinaryByIdx(&value, i));
-				// out += ;
+				out += "binary `";
+				for (u8 byte : value)
+					out += std::format("{:02x}", byte);
+				out += '`';
 				break;
 			}
+			case byml::NodeType::BinaryAlignment: HK_ABORT("unimplemented binary alignment node");
 			case byml::NodeType::Bool: {
-				bool value;
-				HK_TRY(node.getBoolByIdx(&value, i));
-				out += std::format("{}", value);
+				bool value = HK_TRY(node.getBoolByIdx(i));
+				out += std::format("bool {}", value);
 				break;
 			}
 			case byml::NodeType::S32: {
-				s32 value;
-				HK_TRY(node.getS32ByIdx(&value, i));
-				out += std::format("{}", value);
+				s32 value = HK_TRY(node.getS32ByIdx(i));
+				out += std::format("s32 {}", value);
 				break;
 			}
 			case byml::NodeType::F32: {
-				f32 value;
-				HK_TRY(node.getF32ByIdx(&value, i));
-				out += std::format("{}", value);
+				f32 value = HK_TRY(node.getF32ByIdx(i));
+				out += std::format("f32 {}", value);
 				break;
 			}
 			case byml::NodeType::U32: {
-				u32 value;
-				HK_TRY(node.getU32ByIdx(&value, i));
-				out += std::format("{}", value);
+				u32 value = HK_TRY(node.getU32ByIdx(i));
+				out += std::format("u32 {}", value);
 				break;
 			}
 			case byml::NodeType::S64: {
-				s64 value;
-				HK_TRY(node.getS64ByIdx(&value, i));
-				out += std::format("{}", value);
+				s64 value = HK_TRY(node.getS64ByIdx(i));
+				out += std::format("s64 {}", value);
 				break;
 			}
 			case byml::NodeType::U64: {
-				u64 value;
-				HK_TRY(node.getU64ByIdx(&value, i));
-				out += std::format("{}", value);
+				u64 value = HK_TRY(node.getU64ByIdx(i));
+				out += std::format("u64 {}", value);
 				break;
 			}
 			case byml::NodeType::F64: {
-				f64 value;
-				HK_TRY(node.getF64ByIdx(&value, i));
-				out += std::format("{}", value);
+				f64 value = HK_TRY(node.getF64ByIdx(i));
+				out += std::format("f64 {}", value);
 				break;
 			}
 			case byml::NodeType::Null: {
@@ -212,6 +204,18 @@ hk::Result print_byml(std::string& out, const byml::Reader& node, s32 level = 0)
 	}
 
 	return hk::ResultSuccess();
+}
+
+hk::Result print_byml(std::string& out, const byml::Reader& node) {
+	out += std::format("version {}\n", node.getVersion());
+	out += "endian ";
+	switch (node.getByteOrder()) {
+	case util::ByteOrder::Big: out += "big\n"; break;
+	case util::ByteOrder::Little: out += "little\n"; break;
+	}
+	out += "root ";
+
+	return print_byml_node(out, node);
 }
 
 hk::Result handle_yaz0(s32 argc, char* argv[]) {
@@ -475,14 +479,14 @@ hk::Result handle_bntx(s32 argc, char* argv[]) {
 
 hk::Result handle_byml(s32 argc, char* argv[]) {
 	if (argc < 3 || util::isEqual(argv[2], "--help")) {
-		fprintf(stderr, "usage: %s byml r <input file> [output json]\n", programName.c_str());
+		fprintf(stderr, "usage: %s byml r <input file> [output text file]\n", programName.c_str());
 		fprintf(stderr, "       %s byml w <output file>\n", programName.c_str());
 		return hk::ResultInvalidArgument();
 	}
 
 	if (util::isEqual(argv[2], "read") || util::isEqual(argv[2], "r")) {
 		if (argc < 4) {
-			fprintf(stderr, "usage: %s byml r <input file> [output json]\n", programName.c_str());
+			fprintf(stderr, "usage: %s byml r <input file> [output text file]\n", programName.c_str());
 			return hk::ResultInvalidArgument();
 		}
 

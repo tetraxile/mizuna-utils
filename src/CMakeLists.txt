@@ -9,6 +9,7 @@ endif()
 
 include_directories(../lib/mizuna/include)
 include_directories(../lib/mizuna/lib/hk/include)
+include_directories(../lib/mizuna/lib)
 include_directories(../lib)
 include_directories(.)
 

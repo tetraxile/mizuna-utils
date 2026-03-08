@@ -62,7 +62,7 @@ s32 main(s32 argc, char** argv) {
 	bool readSuccess = iniFile.read(ini);
 
 	if (!readSuccess) {
-		fprintf(stderr, "error: couldn't read afl config file");
+		fprintf(stderr, "error: couldn't read mizuna config file");
 		return 1;
 	}
 
