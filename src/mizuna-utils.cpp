@@ -55,14 +55,24 @@ hk::Result print_byml_node(std::string& out, const byml::Reader& node, s32 level
 			}
 			case byml::NodeType::Binary: {
 				std::vector<u8> value;
-				HK_TRY(node.getBinaryByIdx(&value, i));
+				u32 alignment;
+				HK_TRY(node.getBinaryByIdx(&value, &alignment, i));
 				out += std::format("{}binary `", indent);
 				for (u8 byte : value)
 					out += std::format("{:02x}", byte);
 				out += '`';
 				break;
 			}
-			case byml::NodeType::BinaryAlignment: HK_ABORT("unimplemented binary alignment node");
+			case byml::NodeType::BinaryAlignment: {
+				std::vector<u8> value;
+				u32 alignment;
+				HK_TRY(node.getBinaryByIdx(&value, &alignment, i));
+				out += std::format("{}binary % {:#x} `", indent, alignment);
+				for (u8 byte : value)
+					out += std::format("{:02x}", byte);
+				out += '`';
+				break;
+			}
 			case byml::NodeType::Bool: {
 				bool value = HK_TRY(node.getBoolByIdx(i));
 				out += std::format("{}bool {}", indent, value);
@@ -142,14 +152,24 @@ hk::Result print_byml_node(std::string& out, const byml::Reader& node, s32 level
 			}
 			case byml::NodeType::Binary: {
 				std::vector<u8> value;
-				HK_TRY(node.getBinaryByIdx(&value, i));
+				u32 alignment;
+				HK_TRY(node.getBinaryByIdx(&value, &alignment, i));
 				out += "binary `";
 				for (u8 byte : value)
 					out += std::format("{:02x}", byte);
 				out += '`';
 				break;
 			}
-			case byml::NodeType::BinaryAlignment: HK_ABORT("unimplemented binary alignment node");
+			case byml::NodeType::BinaryAlignment: {
+				std::vector<u8> value;
+				u32 alignment;
+				HK_TRY(node.getBinaryByIdx(&value, &alignment, i));
+				out += std::format("binary % {:#x} `", alignment);
+				for (u8 byte : value)
+					out += std::format("{:02x}", byte);
+				out += '`';
+				break;
+			}
 			case byml::NodeType::Bool: {
 				bool value = HK_TRY(node.getBoolByIdx(i));
 				out += std::format("bool {}", value);
