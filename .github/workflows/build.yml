@@ -12,6 +12,8 @@ jobs:
         with:
           submodules: recursive
       - name: Build
+        env:
+          CC: clang
         run: |
           mkdir build
           cd build
@@ -35,6 +37,8 @@ jobs:
         with:
           submodules: recursive
       - name: Build
+        env:
+          CC: clang
         run: |
           mkdir build
           cd build
