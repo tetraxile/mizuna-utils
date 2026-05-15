@@ -67,4 +67,5 @@ The licenses found in the [LICENSE](LICENSE) file apply only to the source files
 ## Credits
 
 * [mINI](https://github.com/metayeti/mINI) for .ini file parsing
-* [clipp](https://github.com/muellan/clipp) for command line argument parsing
+* [argspp](https://github.com/dmulholl/argspp) for command line argument parsing
+* [zstd](https://github.com/facebook/zstd) for interacting with ZSTD compressed archives

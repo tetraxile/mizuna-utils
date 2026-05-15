@@ -1,57 +1,63 @@
 #include <cstdio>
 #include <hk/types.h>
-#include <iostream>
 #include <string>
 
-#include "clipp/clipp.h"
+#include "argspp/args.h"
 #include "config.h"
 #include "mini/ini.h"
-#include "mizuna/util.h"
 
 s32 main(s32 argc, char** argv) {
-	using namespace clipp;
-
 	std::string gameName;
 	std::string romfsPath;
 
-	// clang-format off
+	enum class Mode { help, romfs, defaultGame };
+	Mode mode = Mode::help;
 
-	enum class Mode { none, help, romfs, defaultGame };
-	Mode mode = Mode::none;
+	std::string programName = fs::path(argv[0]).filename().string();
+	std::string usageText = "usage:\n"
+	                        "  " +
+	                        programName +
+	                        " romfs <game> <romfs path> [-h]\n"
+	                        "  " +
+	                        programName +
+	                        " default_game <game> [-h]\n"
+	                        "\n"
+	                        "options:\n"
+	                        "  <game>          one of \"smo\" or \"3dw\"\n"
+	                        "  <romfs path>    path to game's romfs directory\n"
+	                        "  -h, --help      show this screen\n";
 
-	auto isGameName = [](const std::string& arg) { return util::isEqual(arg, "smo") || util::isEqual(arg, "3dw"); };
+	args::ArgParser parser(usageText);
+	parser.flag("h help");
 
-	auto romfsMode = (
-		command("romfs").set(mode, Mode::romfs),
-		value(isGameName, "game", gameName).doc("one of \"smo\" or \"3dw\""),
-		value("romfs path", romfsPath).doc("path to game's romfs directory")
-	);
+	args::ArgParser romfsParser =
+		parser.command("romfs", usageText, [&mode, &gameName, &romfsPath](std::string cmd, args::ArgParser& parser) {
+			if (parser.args.size() != 2) return;
+			mode = Mode::romfs;
+			gameName = parser.args[0];
+			romfsPath = parser.args[1];
+			if (!fs::is_directory(romfsPath)) {
+				fprintf(stderr, "error: romfs path not found\n\n");
+				mode = Mode::help;
+			}
+		});
 
-	auto defaultMode = (
-		command("default_game").set(mode, Mode::defaultGame),
-		value(isGameName, "game", gameName).doc("one of \"smo\" or \"3dw\"")
-	);
+	args::ArgParser defaultGameParser =
+		parser.command("default_game", usageText, [&mode, &gameName](std::string cmd, args::ArgParser& parser) {
+			if (parser.args.size() != 1) return;
+			mode = Mode::defaultGame;
+			gameName = parser.args[0];
+		});
 
-	auto cli = (
-		(romfsMode | defaultMode),
-	    option("-h", "--help").set(mode, Mode::help).doc("show this screen")
-	);
+	parser.parse(argc, argv);
 
-	// clang-format on
-
-	if (!parse(argc, argv, cli) || (mode == Mode::help)) {
-		auto fmt = doc_formatting {}.first_column(2).doc_column(20);
-
-		std::string programName = "./" + fs::path(argv[0]).filename().string();
-
-		std::cout << "usage:\n"
-				  << usage_lines(cli, programName, fmt) << "\n\noptions:\n"
-				  << documentation(cli, fmt) << std::endl;
-		return 1;
+	if (mode == Mode::help) {
+		fprintf(stderr, "%s", usageText.c_str());
+		return parser.found("help") ? 0 : 1;
 	}
 
-	if (mode == Mode::romfs && !fs::is_directory(romfsPath)) {
-		fprintf(stderr, "error: romfs path not found\n");
+	if (gameName != "smo" && gameName != "3dw") {
+		fprintf(stderr, "error: game must be one of \"smo\" or \"3dw\"\n\n%s", usageText.c_str());
 		return 1;
 	}
 

@@ -13,7 +13,7 @@
 #include <unordered_set>
 #include <vector>
 
-#include "clipp/clipp.h"
+#include "argspp/args.h"
 #include "config.h"
 #include "mini/ini.h"
 #include "mizuna/byml/reader.h"
@@ -544,8 +544,6 @@ hk::Result SearchEngine::saveResults(const fs::path& outPath) const {
 }
 
 s32 main(s32 argc, char** argv) {
-	using namespace clipp;
-
 	mINI::INIFile configFile(getConfigPath());
 	mINI::INIStructure ini;
 	bool readSuccess = configFile.read(ini);
@@ -557,30 +555,39 @@ s32 main(s32 argc, char** argv) {
 	std::string keyQueryName;
 	std::string outPath = "results.txt";
 
-	// clang-format off
-
 	bool isShowHelp = false;
 	bool isVerbose = false;
-	auto cli = (
-		opt_value("game", gameName).doc("one of \"smo\" or \"3dw\""),
-		option("-r", "--romfs").doc("path to game's romfs") & value("romfs path", romfsPath),
-		option("-n", "--name").doc("name of object to search for") & value("name", objectName),
-	    option("-o", "--output").doc("path to output file (default: results.txt)") & value("outfile", outPath),
-	    option("-v", "--verbose").set(isVerbose).doc("print more detailed output"),
-	    option("-h", "--help").set(isShowHelp).doc("show this screen")
-	);
 
-	// clang-format on
+	std::string programName = fs::path(argv[0]).filename().string();
+	std::string usageText = "usage:\n"
+	                        "  " +
+	                        programName +
+	                        " [game] [-r <romfs path>] [-n <name>] [-o <outfile>] [-v] [-h]\n"
+	                        "\n"
+	                        "options:\n"
+	                        "  <game>          one of \"smo\" or \"3dw\"\n"
+	                        "  -r, --romfs     path to game's romfs\n"
+	                        "  -n, --name      name of object to search for\n"
+	                        "  -o, --output    path to output file (default: results.txt)\n"
+	                        "  -v, --verbose   print more detailed output\n"
+	                        "  -h, --help      show this screen\n";
 
-	if (!parse(argc, argv, cli) || isShowHelp) {
-		auto fmt = doc_formatting {}.first_column(2).doc_column(20);
+	args::ArgParser parser(usageText);
+	parser.option("r romfs");
+	parser.option("n name");
+	parser.option("o output");
+	parser.flag("v verbose");
+	parser.flag("h help");
+	parser.parse(argc, argv);
 
-		std::string programName = "./" + fs::path(argv[0]).filename().string();
-
-		std::cout << "usage:\n"
-				  << usage_lines(cli, programName, fmt) << "\n\noptions:\n"
-				  << documentation(cli, fmt) << std::endl;
-		return 1;
+	if (parser.args.size() == 1) gameName = parser.args[0];
+	if (parser.found("romfs")) romfsPath = parser.value("romfs");
+	if (parser.found("name")) objectName = parser.value("name");
+	if (parser.found("output")) outPath = parser.value("output");
+	isVerbose = parser.found("verbose");
+	if (parser.found("help")) {
+		fprintf(stderr, "%s", usageText.c_str());
+		return 0;
 	}
 
 	if (gameName.empty()) gameName = ini["default"]["game"];
