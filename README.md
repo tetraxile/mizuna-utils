@@ -9,10 +9,8 @@ There is a workflow that uploads automatic builds [here](https://github.com/tetr
 ### Linux
 
 * `git submodule update --init --recursive`
-* `mkdir build`
-* `cd build`
-* `cmake ..`
-* `make`
+* `cmake -B build --toolchain=cmake/toolchain.cmake`
+* `cmake --build build`
 
 ### Windows
 
@@ -43,12 +41,11 @@ this script searches through all of a game's stages for an object that matches t
 ### mizuna-utils
 
 ```
-usage: ./mizuna-utils <format> <option>
-	formats: yaz0, sarc, szs, bffnt, bntx, byml, bfres
-	options: read, r, write, w
+usage: ./mizuna-utils <format> <options...>
+        formats: yaz0, sarc, szs, byml, msbp
 ```
 
-various readers/writers for different file formats. some of these don't do much
+various readers/writers for different file formats
 
 ### al-config
 

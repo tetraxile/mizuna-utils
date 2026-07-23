@@ -417,7 +417,7 @@ hk::Result SearchEngine::searchStage(const fs::path& stagePath) {
 
 hk::Result SearchEngine::searchAllStages(const fs::path& romfsPath) {
 	const fs::path stageDataPath = romfsPath / "StageData";
-	if (!fs::is_directory(stageDataPath)) return ResultDirNotFound();
+	if (!fs::is_directory(stageDataPath)) return mizuna::ResultDirNotFound();
 
 	printf("searching...\n");
 
@@ -446,7 +446,7 @@ hk::Result SearchEngine::saveResults(const fs::path& outPath) const {
 
 	if (!f) {
 		fprintf(stderr, "error: could not create file %s\n", outPath.string().c_str());
-		return ResultFileError();
+		return mizuna::ResultFileError();
 	}
 
 	if (mGame == Game::SMO) {

@@ -13,25 +13,17 @@ include_directories(../lib/mizuna/lib)
 include_directories(../lib)
 include_directories(.)
 
-add_executable(mizuna-utils)
-add_executable(mizuna-test)
+add_subdirectory(mizuna-utils)
+
 add_executable(al-search)
 add_executable(al-config)
 
-find_library(ZSTD_LIBRARY NAMES zstd lzstd libzstd)
-target_link_libraries(mizuna-utils PRIVATE ${ZSTD_LIBRARY} LibHakkunCore argspp)
-
-target_sources(mizuna-utils
-    PRIVATE
-        mizuna-utils.cpp
-)
-
-target_link_libraries(mizuna-test PRIVATE LibHakkunCore)
-target_sources(mizuna-test
-    PRIVATE
-        mizuna-test.cpp
-        config.cpp
-)
+# target_link_libraries(mizuna-test PRIVATE LibHakkunCore)
+# target_sources(mizuna-test
+#     PRIVATE
+#         mizuna-test.cpp
+#         config.cpp
+# )
 
 target_link_libraries(al-search PRIVATE LibHakkunCore argspp)
 target_sources(al-search
@@ -47,7 +39,6 @@ target_sources(al-config
         config.cpp
 )
 
-target_link_libraries(mizuna-utils PRIVATE mizuna)
-target_link_libraries(mizuna-test PRIVATE mizuna)
+# target_link_libraries(mizuna-test PRIVATE mizuna)
 target_link_libraries(al-search PRIVATE mizuna)
 target_link_libraries(al-config PRIVATE mizuna)
