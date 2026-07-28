@@ -42,10 +42,12 @@ s32 main(s32 argc, char* argv[]) {
 		r = handle_bfres(argc, argv);
 	else if (util::isEqual(argv[1], "msbp"))
 		r = handle_msbp(argc, argv);
+	else if (util::isEqual(argv[1], "msbt"))
+		r = handle_msbt(argc, argv);
 	else {
 		fprintf(stderr, "error: unrecognized format '%s'\n\n", argv[1]);
 		fprintf(stderr, "usage: %s <format> <options...>\n", argv[0]);
-		fprintf(stderr, "\tformats: yaz0, sarc, szs, byml, msbp\n");
+		fprintf(stderr, "\tformats: yaz0, sarc, szs, byml, msbp, msbt\n");
 		return 1;
 	}
 

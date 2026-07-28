@@ -451,7 +451,7 @@ hk::Result SearchEngine::saveResults(const fs::path& outPath) const {
 
 	if (mGame == Game::SMO) {
 		std::unordered_set<Result> collapsedResults;
-		for (const auto& result : mResults) {
+		for (const Result& result : mResults) {
 			if (collapsedResults.contains(result))
 				collapsedResults.find(result)->scenarioFlag[result.scenarioIdx] = true;
 			else
@@ -470,7 +470,7 @@ hk::Result SearchEngine::saveResults(const fs::path& outPath) const {
 		fprintf(f, "\n");
 
 		std::map<std::string, std::vector<Result>> stages;
-		for (const auto& result : collapsedResults) {
+		for (const Result& result : collapsedResults) {
 			if (stages.contains(result.stageName))
 				stages[result.stageName].push_back(result);
 			else
@@ -479,7 +479,7 @@ hk::Result SearchEngine::saveResults(const fs::path& outPath) const {
 
 		for (const auto& [stageName, results] : stages) {
 			fprintf(f, "%s:\n", stageName.c_str());
-			for (const auto& result : results) {
+			for (const Result& result : results) {
 				fprintf(f, "\tUnitConfigName: %s\n", result.unitConfigName.c_str());
 				if (!util::isEqual(result.unitConfigName, result.modelName) && !result.modelName.empty()) {
 					fprintf(f, "\tModelName: %s\n", result.modelName.c_str());
@@ -513,7 +513,7 @@ hk::Result SearchEngine::saveResults(const fs::path& outPath) const {
 		fprintf(f, "\n");
 
 		std::map<std::string, std::vector<Result>> stages;
-		for (const auto& result : mResults) {
+		for (const Result& result : mResults) {
 			if (stages.contains(result.stageName))
 				stages[result.stageName].push_back(result);
 			else
@@ -522,7 +522,7 @@ hk::Result SearchEngine::saveResults(const fs::path& outPath) const {
 
 		for (const auto& [stageName, results] : stages) {
 			fprintf(f, "%s:\n", stageName.c_str());
-			for (const auto& result : results) {
+			for (const Result& result : results) {
 				fprintf(f, "\tUnitConfigName: %s\n", result.unitConfigName.c_str());
 				if (!util::isEqual(result.unitConfigName, result.modelName) && !result.modelName.empty())
 					fprintf(f, "\tModelName: %s\n", result.modelName.c_str());

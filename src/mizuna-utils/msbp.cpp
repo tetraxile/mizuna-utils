@@ -45,19 +45,19 @@ hk::Result print_msbp(std::string& out, const msbp::Reader& msbp) {
 				out += std::format("    {}\n", tag.name.c_str());
 				for (const auto& param : tag.params) {
 					std::string typeStr;
-					if (param.type == msbp::ParamType::U8)
+					if (param.type == lms::ParamType::U8)
 						typeStr = "u8";
-					else if (param.type == msbp::ParamType::U16)
+					else if (param.type == lms::ParamType::U16)
 						typeStr = "u16";
-					else if (param.type == msbp::ParamType::S16)
+					else if (param.type == lms::ParamType::S16)
 						typeStr = "s16";
-					else if (param.type == msbp::ParamType::U32)
+					else if (param.type == lms::ParamType::U32)
 						typeStr = "u32";
-					else if (param.type == msbp::ParamType::F32)
+					else if (param.type == lms::ParamType::F32)
 						typeStr = "f32";
-					else if (param.type == msbp::ParamType::String)
+					else if (param.type == lms::ParamType::String)
 						typeStr = "string";
-					else if (param.type == msbp::ParamType::Null)
+					else if (param.type == lms::ParamType::Null)
 						typeStr = "null";
 					else {
 						fprintf(stderr, "unimplemented param type `%#x`\n", (u8)param.type);

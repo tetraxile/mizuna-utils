@@ -1,5 +1,5 @@
 if (NOT MSVC)
-    add_compile_options(-O2 -Wno-unused-variable)
+    add_compile_options(-g -O2 -Wno-unused-variable)
     if (WIN32)
         add_compile_options(-static -static-libgcc -static-libstdc++)
     endif()

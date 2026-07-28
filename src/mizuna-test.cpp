@@ -16,7 +16,6 @@
 #include "mizuna/sarc/reader.h"
 #include "mizuna/util.h"
 #include "mizuna/yaz0.h"
-#include "results.h"
 
 namespace fs = std::filesystem;
 
@@ -304,8 +303,10 @@ hk::Result Tester::testWriteFile(const std::vector<u8>& contents, const std::str
 	} else if (extension == ".bnvib") {
 	} else if (extension == ".gsh") {
 	} else if (extension == ".sarc") {
-	} else if (extension == ".baglmf" or extension == ".baglcc" or extension == ".baglpreset" or
-	           extension == ".baglshpp" or extension == ".baglssao" or extension == ".baglprojparam") {
+	} else if (
+		extension == ".baglmf" or extension == ".baglcc" or extension == ".baglpreset" or extension == ".baglshpp" or
+		extension == ".baglssao" or extension == ".baglprojparam"
+	) {
 		HK_TRY(reader::checkSignature(contents.data(), "AAMP", 4));
 	} else {
 		fprintf(stderr, "error: unexpected file extension '%s'\n", extension.c_str());

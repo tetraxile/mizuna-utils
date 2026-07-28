@@ -14,6 +14,7 @@ target_sources(mizuna-utils
         bffnt.cpp
         bntx.cpp
         msbp.cpp
+        msbt.cpp
 )
 
 target_link_libraries(mizuna-utils PRIVATE mizuna)
