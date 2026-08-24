@@ -1,7 +1,6 @@
 #include "main.h"
 
 #include <cstdio>
-#include <filesystem>
 #include <hk/ValueOrResult.h>
 #include <hk/diag/diag.h>
 #include <string>
@@ -10,13 +9,9 @@
 #include "mizuna/results.h"
 #include "mizuna/util.h"
 
-namespace fs = std::filesystem;
-
-std::string programName;
+std::string programName = "mizuna-utils";
 
 s32 main(s32 argc, char* argv[]) {
-	programName = "./" + fs::path(argv[0]).filename().string();
-
 	if (argc < 2) {
 		fprintf(stderr, "usage: %s <format> <options...>\n", programName.c_str());
 		fprintf(stderr, "\tformats: yaz0, sarc, szs, byml, msbp\n");

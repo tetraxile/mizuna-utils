@@ -1,7 +1,8 @@
 add_executable(mizuna-utils)
 
 find_library(ZSTD_LIBRARY NAMES zstd lzstd libzstd)
-target_link_libraries(mizuna-utils PRIVATE ${ZSTD_LIBRARY} LibHakkunCore argspp)
+# target_link_libraries(mizuna-utils PRIVATE ${ZSTD_LIBRARY} LibHakkunCore argspp)
+target_link_libraries(mizuna-utils PRIVATE ${ZSTD_LIBRARY} argspp)
 
 target_sources(mizuna-utils
     PRIVATE
@@ -15,6 +16,7 @@ target_sources(mizuna-utils
         bntx.cpp
         msbp.cpp
         msbt.cpp
+        util.cpp
 )
 
-target_link_libraries(mizuna-utils PRIVATE mizuna)
+target_link_libraries(mizuna-utils PRIVATE mizuna LibHakkunCore)

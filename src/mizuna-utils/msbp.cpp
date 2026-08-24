@@ -9,6 +9,7 @@
 #include "mizuna/msbp/reader.h"
 #include "mizuna/msbp/results.h"
 #include "mizuna/util.h"
+#include "util.h"
 
 hk::Result print_msbp(std::string& out, const msbp::Reader& msbp) {
 	out += "filetype msbp\n";
@@ -98,19 +99,66 @@ hk::Result print_msbp(std::string& out, const msbp::Reader& msbp) {
 }
 
 hk::Result handle_msbp(s32 argc, char* argv[]) {
-	if (argc < 3 || util::isEqual(argv[2], "--help")) {
-		fprintf(stderr, "usage: %s msbp r <project file> [output mml file]\n", programName.c_str());
-		return hk::ResultInvalidArgument();
+	std::string mainErrorStr;
+	mainErrorStr += std::format("usage: {} msbp r <project file> [output mml file]\n", programName);
+	mainErrorStr += std::format("\n");
+	mainErrorStr += std::format("options: --quiet, -q\n");
+	mainErrorStr += std::format("         --force, -f\n");
+	mainErrorStr += std::format("         --help, -h\n");
+
+	enum { HELP, READ } subcommand = HELP;
+
+	struct {
+		struct {
+			fs::path projectFile;
+			std::optional<fs::path> outFile;
+		} read;
+	} args;
+
+	bool hasSubcommand = false;
+	bool isQuiet = false;
+	bool isForce = false;
+	for (s32 argIdx = 2; argIdx < argc; argIdx++) {
+		const char* arg = argv[argIdx];
+		if (util::isEqual(arg, "--help") || util::isEqual(arg, "-h")) {
+			subcommand = HELP;
+			break;
+		} else if (!isQuiet && (util::isEqual(arg, "--quiet") || util::isEqual(arg, "-q"))) {
+			isQuiet = true;
+		} else if (!isForce && (util::isEqual(arg, "--force") || util::isEqual(arg, "-f"))) {
+			isForce = true;
+		} else if (!hasSubcommand) {
+			if (util::isEqual(arg, "read") || util::isEqual(arg, "r")) {
+				subcommand = READ;
+				std::string errorStr = std::format("usage: {} msbp r <project file> [output mml file]\n", programName);
+				HK_TRY(check_args_len(argIdx, argc, 1, errorStr));
+
+				args.read.projectFile = HK_TRY(parse_path_file(argv[++argIdx], "project file", errorStr));
+				if (get_args_num(argIdx, argc) > 1) args.read.outFile = argv[++argIdx];
+			} else {
+				fprintf(stderr, "error: unexpected argument `%s`\n\n", arg);
+				fputs(mainErrorStr.c_str(), stderr);
+				return hk::ResultInvalidArgument();
+			}
+			hasSubcommand = true;
+		} else {
+			fprintf(stderr, "error: unexpected argument `%s`\n\n", arg);
+			fputs(mainErrorStr.c_str(), stderr);
+			return hk::ResultInvalidArgument();
+		}
 	}
 
-	if (util::isEqual(argv[2], "read") || util::isEqual(argv[2], "r")) {
-		if (argc < 4) {
-			fprintf(stderr, "usage: %s msbp r <project file> [output mml file]\n", programName.c_str());
+	if (subcommand == HELP) {
+		fputs(mainErrorStr.c_str(), stderr);
+		return hk::ResultInvalidArgument();
+	} else if (subcommand == READ) {
+		if (args.read.outFile.has_value() && fs::exists(args.read.outFile.value()) && !isForce) {
+			fprintf(stderr, "error: can't overwrite output path (try running with --force/-f)\n");
 			return hk::ResultInvalidArgument();
 		}
 
 		std::vector<u8> fileContents;
-		HK_TRY(util::readFile(fileContents, argv[3]));
+		HK_TRY(util::readFile(fileContents, args.read.projectFile));
 
 		msbp::Reader msbp(fileContents);
 		HK_TRY(msbp.read());
@@ -118,10 +166,10 @@ hk::Result handle_msbp(s32 argc, char* argv[]) {
 		std::string out;
 		HK_TRY(print_msbp(out, msbp));
 
-		if (argc < 5)
-			printf("%s\n", out.c_str());
+		if (args.read.outFile.has_value())
+			util::writeFile(args.read.outFile.value(), out + '\n');
 		else
-			util::writeFile(argv[4], out + '\n');
+			printf("%s\n", out.c_str());
 	} else {
 		fprintf(stderr, "error: unrecognized option '%s'\n", argv[2]);
 		return hk::ResultInvalidArgument();

@@ -13,6 +13,7 @@
 #include "mizuna/results.h"
 #include "mizuna/util.h"
 #include "results.h"
+#include "util.h"
 
 using namespace mizuna_utils;
 
@@ -209,6 +210,8 @@ hk::Result print_byml_node(std::string& out, const byml::Reader& node, s32 level
 			if (i == node.getSize() - 1) out += std::format("\n{}", indent);
 		}
 		out += "}";
+	} else if (HK_TRY(node.getType()) == byml::NodeType::Null) {
+		out += "null";
 	}
 
 	return hk::ResultSuccess();
@@ -279,18 +282,27 @@ hk::Result parse_mml(byml::Writer& writer, const std::string& contents) {
 		va_end(args);
 	};
 
+	// auto log = [](const char* fmt, ...) {
+	// 	va_list args;
+	// 	va_start(args, fmt);
+	// 	vfprintf(stderr, fmt, args);
+	// 	va_end(args);
+	// };
+
+	auto log = [](const char* fmt, ...) {};
+
 	while (true) {
 		if (idx >= contents.size()) break;
 
 		char c = contents[idx];
 
 		if (is_alpha(c)) {
-			// printf("ALNUM\n");
+			log("ALNUM\n");
 
 			while (tmp += c, c = contents[++idx], is_alnum(c))
 				;
 
-			// printf("  '%s'\n", tmp.c_str());
+			log("  '%s'\n", tmp.c_str());
 
 			if (state == START) {
 				if (tmp == "filetype")
@@ -325,6 +337,7 @@ hk::Result parse_mml(byml::Writer& writer, const std::string& contents) {
 					logError(line, "filetype must be `byml`");
 					return ResultWrongFiletype();
 				}
+				state = START;
 			} else if (state == ENDIAN) {
 				if (tmp == "little")
 					byteOrder = util::ByteOrder::Little;
@@ -334,6 +347,7 @@ hk::Result parse_mml(byml::Writer& writer, const std::string& contents) {
 					logError(line, "endian must be `big` or `little`");
 					return mizuna::ResultBadByteOrder();
 				}
+				state = START;
 			} else if (state == ROOT) {
 				if (tmp == "hash") {
 					if (!containerStack.empty() && containerType == byml::NodeType::Hash && key.empty()) {
@@ -444,7 +458,7 @@ hk::Result parse_mml(byml::Writer& writer, const std::string& contents) {
 					}
 					childNodeType.reset();
 				} else {
-					// printf("  '%s' (container: %02x)\n", tmp.c_str(), containerType.value());
+					log("  '%s' (container: %02x)\n", tmp.c_str(), containerType.value());
 					if (contents[idx++] != ':') {
 						logError(line, "expected colon after key");
 						return ResultParseError();
@@ -458,11 +472,27 @@ hk::Result parse_mml(byml::Writer& writer, const std::string& contents) {
 
 			tmp.clear();
 		} else if (is_whitespace(c)) {
-			// printf("WHITESPACE\n");
+			log("WHITESPACE\n");
 			while (is_whitespace(contents[++idx]))
 				;
 		} else if (is_num(c) || c == '-') {
-			// printf("NUMBER\n");
+			log("NUMBER\n");
+
+			// hash key
+			if (containerType.has_value() && containerType.value() == byml::NodeType::Hash &&
+			    !childNodeType.has_value()) {
+				while (tmp += c, c = contents[++idx], is_alnum(c))
+					;
+
+				log("  '%s' (container: %02x)\n", tmp.c_str(), containerType.value());
+				if (contents[idx++] != ':') {
+					logError(line, "expected colon after key");
+					return ResultParseError();
+				}
+				key = tmp;
+				tmp.clear();
+				continue;
+			}
 
 			bool isNegative = c == '-';
 			if (isNegative) idx++;
@@ -483,28 +513,32 @@ hk::Result parse_mml(byml::Writer& writer, const std::string& contents) {
 			bool hasSeparator = false;
 			while (true) {
 				c = contents[idx];
-				if (radix == 10 && is_num(c)) {
+				if (radix == 10 && is_num(c))
 					tmp += c;
-				} else if (radix == 8 && is_num(c, 8)) {
+				else if (radix == 8 && is_num(c, 8))
 					tmp += c;
-				} else if (radix == 2 && is_num(c, 2)) {
+				else if (radix == 2 && is_num(c, 2))
 					tmp += c;
-				} else if (radix == 16 && is_num(c, 16)) {
+				else if (radix == 16 && is_num(c, 16))
 					tmp += c;
-				} else if (c == '.' || c == ',') {
+				else if (c == '.' || c == ',') {
 					if (hasSeparator) break;
 					hasSeparator = true;
-				} else {
+				} else
 					break;
-				}
+
 				idx++;
 			}
 
-			// printf("  `%s` ('%c')\n", tmp.c_str(), contents[idx]);
+			log("  `%s`\n", tmp.c_str());
 
 			if (state == VERSION) {
 				u32 num = std::stoul(tmp, 0, radix);
-				// printf("  version = %u\n", num);
+				if (isNegative || hasSeparator) {
+					logError(line, "invalid version number");
+					return ResultParseError();
+				}
+				log("  version = %u\n", num);
 				version = (byml::Writer::Version)num;
 				tmp.clear();
 				continue;
@@ -532,7 +566,7 @@ hk::Result parse_mml(byml::Writer& writer, const std::string& contents) {
 					HK_TRY(writer.addS32(key, value));
 					key.clear();
 				}
-				// printf("  `%d` (%u)\n", value, radix);
+				log("  `%d` (%u)\n", value, radix);
 			} else if (childNodeType == byml::NodeType::S64) {
 				if (isNegative) tmp.insert(0, 1, '-');
 				s64 value = std::stol(tmp, 0, radix);
@@ -542,7 +576,7 @@ hk::Result parse_mml(byml::Writer& writer, const std::string& contents) {
 					HK_TRY(writer.addS64(key, value));
 					key.clear();
 				}
-				// printf("  `%ld` (%u)\n", value, radix);
+				log("  `%ld` (%u)\n", value, radix);
 			} else if (childNodeType == byml::NodeType::U32) {
 				if (isNegative) {
 					logError(line, "unsigned integer cannot be negative");
@@ -555,7 +589,7 @@ hk::Result parse_mml(byml::Writer& writer, const std::string& contents) {
 					HK_TRY(writer.addU32(key, value));
 					key.clear();
 				}
-				// printf("  `%u` (%u)\n", value, radix);
+				log("  `%u` (%u)\n", value, radix);
 			} else if (childNodeType == byml::NodeType::U64) {
 				if (isNegative) {
 					logError(line, "unsigned integer cannot be negative");
@@ -568,10 +602,10 @@ hk::Result parse_mml(byml::Writer& writer, const std::string& contents) {
 					HK_TRY(writer.addU64(key, value));
 					key.clear();
 				}
-				// printf("  `%lu` (%u)\n", value, radix);
+				log("  `%lu` (%u)\n", value, radix);
 			} else if (childNodeType == byml::NodeType::F32) {
 				if (isNegative) tmp.insert(0, 1, '-');
-				// printf("%s\n", tmp.c_str());
+				log("%s\n", tmp.c_str());
 				if (radix != 10) {
 					logError(line, "floats only support base 10");
 					return ResultParseError();
@@ -584,7 +618,7 @@ hk::Result parse_mml(byml::Writer& writer, const std::string& contents) {
 					HK_TRY(writer.addF32(key, value));
 					key.clear();
 				}
-				// printf("  `%f`\n", value);
+				log("  `%f`\n", value);
 			} else if (childNodeType == byml::NodeType::F64) {
 				if (isNegative) tmp.insert(0, 1, '-');
 				if (radix != 10) {
@@ -599,7 +633,7 @@ hk::Result parse_mml(byml::Writer& writer, const std::string& contents) {
 					HK_TRY(writer.addF64(key, value));
 					key.clear();
 				}
-				// printf("  `%f`\n", value);
+				log("  `%f`\n", value);
 			} else {
 				logError(line, "unexpected number");
 				return ResultParseError();
@@ -608,7 +642,7 @@ hk::Result parse_mml(byml::Writer& writer, const std::string& contents) {
 			childNodeType.reset();
 			tmp.clear();
 		} else if (c == '\n') {
-			// printf("NEWLINE\n");
+			log("NEWLINE\n");
 			idx++;
 			line++;
 			if (state == VERSION || state == ENDIAN) state = START;
@@ -618,7 +652,7 @@ hk::Result parse_mml(byml::Writer& writer, const std::string& contents) {
 			}
 			childNodeType.reset();
 		} else if (c == '{') {
-			// printf("LBRACE\n");
+			log("LBRACE\n");
 			idx++;
 			if (state != ROOT || containerType != byml::NodeType::Hash) {
 				logError(line, "unexpected character '{'\n");
@@ -634,7 +668,7 @@ hk::Result parse_mml(byml::Writer& writer, const std::string& contents) {
 				HK_ABORT("unreachable");
 			}
 		} else if (c == '}') {
-			// printf("RBRACE\n");
+			log("RBRACE\n");
 			idx++;
 			if (state != ROOT || containerType != byml::NodeType::Hash) {
 				logError(line, "unexpected character '}'\n");
@@ -643,15 +677,15 @@ hk::Result parse_mml(byml::Writer& writer, const std::string& contents) {
 			HK_TRY(writer.pop());
 			if (containerStack.empty()) break;
 
-			// printf("  ");
-			for (byml::NodeType& nodeType : containerStack)
-				// printf("%02x ", (u32)nodeType);
-				// printf("\n");
-
+			log("  ");
+			for (byml::NodeType& nodeType : containerStack) {
+				log("%02x ", (u32)nodeType);
+				log("\n");
 				containerType = containerStack.back();
+			}
 			containerStack.pop_back();
 		} else if (c == '[') {
-			// printf("LBRACKET\n");
+			log("LBRACKET\n");
 			idx++;
 			if (state != ROOT || containerType != byml::NodeType::Array) {
 				logError(line, "unexpected character '['\n");
@@ -667,7 +701,7 @@ hk::Result parse_mml(byml::Writer& writer, const std::string& contents) {
 			}
 			childNodeType.reset();
 		} else if (c == ']') {
-			// printf("RBRACKET\n");
+			log("RBRACKET\n");
 			idx++;
 			if (state != ROOT || containerType != byml::NodeType::Array) {
 				logError(line, "unexpected character ']'\n");
@@ -676,15 +710,15 @@ hk::Result parse_mml(byml::Writer& writer, const std::string& contents) {
 			HK_TRY(writer.pop());
 			if (containerStack.empty()) break;
 
-			// printf("  ");
-			for (byml::NodeType& nodeType : containerStack)
-				// printf("%02x ", (u32)nodeType);
-				// printf("\n");
-
+			log("  ");
+			for (byml::NodeType& nodeType : containerStack) {
+				log("%02x ", (u32)nodeType);
+				log("\n");
 				containerType = containerStack.back();
+			}
 			containerStack.pop_back();
 		} else if (c == '"') {
-			// printf("QUOTE\n");
+			log("QUOTE\n");
 			if (!containerType.has_value()) {
 				logError(line, "no container for value node");
 				return ResultParseError();
@@ -729,7 +763,7 @@ hk::Result parse_mml(byml::Writer& writer, const std::string& contents) {
 				return ResultParseError();
 			}
 
-			// printf("  str `%s`\n", str.c_str());
+			log("  str `%s`\n", str.c_str());
 			childNodeType.reset();
 			idx++;
 		} else if (c == ',') {
@@ -745,20 +779,79 @@ hk::Result parse_mml(byml::Writer& writer, const std::string& contents) {
 }
 
 hk::Result handle_byml(s32 argc, char* argv[]) {
-	if (argc < 3 || util::isEqual(argv[2], "--help")) {
-		fprintf(stderr, "usage: %s byml r <input file> [output mml file]\n", programName.c_str());
-		fprintf(stderr, "       %s byml w <input file> <output byml file>\n", programName.c_str());
-		return hk::ResultInvalidArgument();
+	std::string mainErrorStr;
+	mainErrorStr += std::format("usage: {} byml r <input file> [output mml file]\n", programName);
+	mainErrorStr += std::format("       {} byml w <input file> <output byml file>\n", programName);
+	mainErrorStr += std::format("\n");
+	mainErrorStr += std::format("options: --quiet, -q\n");
+	mainErrorStr += std::format("         --force, -f\n");
+	mainErrorStr += std::format("         --help, -h\n");
+
+	enum { HELP, READ, WRITE } subcommand = HELP;
+
+	struct {
+		struct {
+			fs::path inFile;
+			std::optional<fs::path> outFile;
+		} read;
+
+		struct {
+			fs::path inFile;
+			fs::path outFile;
+		} write;
+	} args;
+
+	bool hasSubcommand = false;
+	bool isQuiet = false;
+	bool isForce = false;
+	for (s32 argIdx = 2; argIdx < argc; argIdx++) {
+		const char* arg = argv[argIdx];
+		if (util::isEqual(arg, "--help") || util::isEqual(arg, "-h")) {
+			subcommand = HELP;
+			break;
+		} else if (!isQuiet && (util::isEqual(arg, "--quiet") || util::isEqual(arg, "-q"))) {
+			isQuiet = true;
+		} else if (!isForce && (util::isEqual(arg, "--force") || util::isEqual(arg, "-f"))) {
+			isForce = true;
+		} else if (!hasSubcommand) {
+			if (util::isEqual(arg, "read") || util::isEqual(arg, "r")) {
+				subcommand = READ;
+				std::string errorStr = std::format("usage: {} byml r <input file> [output mml file]\n", programName);
+				HK_TRY(check_args_len(argIdx, argc, 1, errorStr));
+
+				args.read.inFile = HK_TRY(parse_path_file(argv[++argIdx], "input file", errorStr));
+				if (get_args_num(argIdx, argc) > 1) args.read.outFile = argv[++argIdx];
+			} else if (util::isEqual(arg, "write") || util::isEqual(arg, "w")) {
+				subcommand = WRITE;
+				std::string errorStr = std::format("usage: {} byml w <input file> <output byml file>\n", programName);
+				HK_TRY(check_args_len(argIdx, argc, 2, errorStr));
+
+				args.write.inFile = HK_TRY(parse_path_file(argv[++argIdx], "input file", errorStr));
+				args.write.outFile = argv[++argIdx];
+			} else {
+				fprintf(stderr, "error: unexpected argument `%s`\n\n", arg);
+				fputs(mainErrorStr.c_str(), stderr);
+				return hk::ResultInvalidArgument();
+			}
+			hasSubcommand = true;
+		} else {
+			fprintf(stderr, "error: unexpected argument `%s`\n\n", arg);
+			fputs(mainErrorStr.c_str(), stderr);
+			return hk::ResultInvalidArgument();
+		}
 	}
 
-	if (util::isEqual(argv[2], "read") || util::isEqual(argv[2], "r")) {
-		if (argc < 4) {
-			fprintf(stderr, "usage: %s byml r <input file> [output mml file]\n", programName.c_str());
+	if (subcommand == HELP) {
+		fputs(mainErrorStr.c_str(), stderr);
+		return hk::ResultInvalidArgument();
+	} else if (subcommand == READ) {
+		if (args.read.outFile.has_value() && fs::exists(args.read.outFile.value()) && !isForce) {
+			fprintf(stderr, "error: can't overwrite output path (try running with --force/-f)\n");
 			return hk::ResultInvalidArgument();
 		}
 
 		std::vector<u8> fileContents;
-		HK_TRY(util::readFile(fileContents, argv[3]));
+		HK_TRY(util::readFile(fileContents, args.read.inFile));
 
 		byml::Reader byml;
 		HK_TRY(byml.init(fileContents.data(), fileContents.size()));
@@ -766,23 +859,23 @@ hk::Result handle_byml(s32 argc, char* argv[]) {
 		std::string out;
 		HK_TRY(print_byml(out, byml));
 
-		if (argc < 5)
-			printf("%s\n", out.c_str());
+		if (args.read.outFile.has_value())
+			util::writeFile(args.read.outFile.value(), out + '\n');
 		else
-			util::writeFile(argv[4], out + '\n');
-	} else if (util::isEqual(argv[2], "write") || util::isEqual(argv[2], "w")) {
-		if (argc < 5) {
-			fprintf(stderr, "usage: %s byml w <input file> <output byml file>\n", programName.c_str());
+			printf("%s\n", out.c_str());
+	} else if (subcommand == WRITE) {
+		if (fs::exists(args.write.outFile) && !isForce) {
+			fprintf(stderr, "error: can't overwrite output path (try running with --force/-f)\n");
 			return hk::ResultInvalidArgument();
 		}
 
 		std::string fileContents;
-		HK_TRY(util::readFile(fileContents, argv[3]));
+		HK_TRY(util::readFile(fileContents, args.write.inFile));
 
 		byml::Writer writer;
 		HK_TRY(parse_mml(writer, fileContents));
 
-		writer.save(argv[4]);
+		writer.save(args.write.outFile);
 	} else {
 		fprintf(stderr, "error: unrecognized option '%s'\n", argv[2]);
 		return hk::ResultInvalidArgument();
