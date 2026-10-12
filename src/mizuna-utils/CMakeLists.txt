@@ -17,6 +17,7 @@ target_sources(mizuna-utils
         msbp.cpp
         msbt.cpp
         util.cpp
+        bfsha.cpp
 )
 
 target_link_libraries(mizuna-utils PRIVATE mizuna LibHakkunCore)

@@ -15,3 +15,4 @@ hk::Result handle_bffnt(s32 argc, char* argv[]);
 hk::Result handle_bntx(s32 argc, char* argv[]);
 hk::Result handle_msbp(s32 argc, char* argv[]);
 hk::Result handle_msbt(s32 argc, char* argv[]);
+hk::Result handle_bfsha(s32 argc, char* argv[]);

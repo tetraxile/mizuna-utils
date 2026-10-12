@@ -39,6 +39,8 @@ s32 main(s32 argc, char* argv[]) {
 		r = handle_msbp(argc, argv);
 	else if (util::isEqual(argv[1], "msbt"))
 		r = handle_msbt(argc, argv);
+	else if (util::isEqual(argv[1], "bfsha"))
+		r = handle_bfsha(argc, argv);
 	else {
 		fprintf(stderr, "error: unrecognized format '%s'\n\n", argv[1]);
 		fprintf(stderr, "usage: %s <format> <options...>\n", argv[0]);
